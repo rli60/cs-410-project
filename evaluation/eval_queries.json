@@ -1,0 +1,18 @@
+{
+  "note": "Relevant movies picked by hand from general film knowledge, NOT from tags, so grading is not circular. Judgment only, teammates should review. ids are MovieLens movieId.",
+  "queries": [
+    {"q": "animated movie for kids", "relevant": ["1","6377","4306","8961","364","5618","68954","50872"]},
+    {"q": "mind bending thriller with a twist ending", "relevant": ["4226","47","50","48780","79132","112556"]},
+    {"q": "space science fiction", "relevant": ["1214","541","109487","260","176371","2571"]},
+    {"q": "romantic love story", "relevant": ["8533","1721","40629","1307","1197"]},
+    {"q": "scary horror movie", "relevant": ["1258","1997","1214","1219","5679","593","1387"]},
+    {"q": "action movie with car chases and explosions", "relevant": ["1036","122882","589","58559","648","5418","3578"]},
+    {"q": "funny family movie", "relevant": ["586","500","1","4306","6377","8961","1270"]},
+    {"q": "silly comedy", "relevant": ["2791","1136","54503","86833","69122","1265"]},
+    {"q": "dinosaurs", "relevant": ["480","1544","4638"]},
+    {"q": "time travel", "relevant": ["1270","589","1265"]},
+    {"q": "serial killer detective crime", "relevant": ["47","593","51540","112556"]},
+    {"q": "epic fantasy adventure", "relevant": ["4993","1197","5618","1136"]},
+    {"q": "shark", "relevant": ["1387","1388","1389"]}
+  ]
+}

@@ -35,6 +35,7 @@ def load_ratings(data_dir):
 class UserCF:
     def __init__(self, ratings, k=30, min_overlap=3, shrink=5):
         self.r = ratings
+        self._cache = {}
         self.k, self.min_overlap, self.shrink = k, min_overlap, shrink
         self.mean = {u: sum(d.values()) / len(d) for u, d in ratings.items() if d}
         self.centered = {u: {m: v - self.mean[u] for m, v in d.items()} for u, d in ratings.items() if d}
@@ -45,6 +46,12 @@ class UserCF:
                 self.by_movie[m].append(u)
 
     def sim(self, a, b):
+        key = (a, b) if a < b else (b, a)
+        if key not in self._cache:
+            self._cache[key] = self._sim(a, b)
+        return self._cache[key]
+
+    def _sim(self, a, b):
         da, db = self.centered[a], self.centered[b]
         if len(da) > len(db):
             da, db = db, da
@@ -89,9 +96,11 @@ class UserCF:
         return out[:n]
 
 
-def hybrid_search(index, cf, user, query, k=10, pool=50, alpha=0.7):
+def hybrid_search(index, cf, user, query, k=10, pool=50, alpha=0.7, pop_weight=0.0):
     """Blend text score (BM25) with CF predicted rating. alpha = weight on text.
-    Text scores and ratings are each min-max scaled to 0..1 over the candidate pool."""
+    Text scores and ratings are each min-max scaled to 0..1 over the candidate pool.
+    pop_weight > 0 adds pop_weight * popularity prior to the text part (needs index.set_popularity();
+    not yet evaluated, only the plain BM25 + popularity version was)."""
     text = index.search_bm25(query, pool)
     if not text:
         return []
@@ -100,6 +109,8 @@ def hybrid_search(index, cf, user, query, k=10, pool=50, alpha=0.7):
     scored = []
     for m, s in text:
         t = (s - lo) / (hi - lo) if hi > lo else 1.0
+        if pop_weight:
+            t += pop_weight * index._prior(m)
         p = cf.predict(user, m)
         c = (p - 0.5) / 4.5 if p is not None else 0.5  # neutral when CF has no opinion
         scored.append((alpha * t + (1 - alpha) * c, m))

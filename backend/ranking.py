@@ -60,6 +60,28 @@ def load_cleaned(path, min_ratings=0, use_title=True):
     return docs
 
 
+def load_popularity(data_dir=None, cleaned=None):
+    """Return {movieId: (rating_count, average_rating)}.
+    From ratings.csv of ml-latest-small (data_dir) or from the team's movies_cleaned.csv (cleaned)."""
+    pop = {}
+    if cleaned:
+        with open(cleaned, encoding="utf-8", errors="replace", newline="") as f:
+            for row in csv.DictReader(f):
+                pop[row["movieId"]] = (float(row.get("rating_count") or 0),
+                                       float(row.get("average_rating") or 0))
+        return pop
+    total, count = defaultdict(float), defaultdict(int)
+    with open(os.path.join(data_dir, "ratings.csv"), encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            total[row["movieId"]] += float(row["rating"])
+            count[row["movieId"]] += 1
+    return {m: (count[m], total[m] / count[m]) for m in count}
+
+
+DEFAULT_POP_WEIGHT = 4.0   # best on our 13 labeled queries (count_avg prior); see evaluation/pop_eval.py
+DEFAULT_POOL = 1000        # a pool of 100 hid famous movies on the 86k file
+
+
 class Index:
     def __init__(self, docs):
         self.titles = {m: t for m, (t, _) in docs.items()}
@@ -109,6 +131,34 @@ class Index:
                 scores[m] += idf * tf * (k1 + 1) / denom
         ranked = sorted(((s, m) for m, s in scores.items()), reverse=True)
         return [(m, s) for s, m in ranked[:k]]
+
+
+def _set_popularity(self, pop):
+    """Attach {movieId: (rating_count, average_rating)} so popularity reranking can be used."""
+    self.pop = pop
+    self._log_max = math.log1p(max((c for c, _ in pop.values()), default=1)) or 1.0
+
+
+def _prior(self, m):
+    """0..1 popularity prior: log rating count (scaled by max) times average rating / 5."""
+    c, a = self.pop.get(m, (0, 0.0))
+    return (math.log1p(c) / self._log_max) * (a / 5.0)
+
+
+def _search_bm25_pop(self, query, k=10, w=DEFAULT_POP_WEIGHT, pool=DEFAULT_POOL):
+    """BM25 rerank: score/top_score + w * popularity prior, over the top `pool` BM25 hits.
+    w=0 gives plain BM25 order. Needs set_popularity() first."""
+    hits = self.search_bm25(query, pool)
+    if not hits:
+        return []
+    top = hits[0][1] or 1.0
+    ranked = sorted(((s / top + w * self._prior(m), m) for m, s in hits), reverse=True)
+    return [(m, s) for s, m in ranked[:k]]
+
+
+Index.set_popularity = _set_popularity
+Index._prior = _prior
+Index.search_bm25_pop = _search_bm25_pop
 
 
 def precision_recall_at_k(ranked_ids, relevant, k):
@@ -171,6 +221,14 @@ def selftest():
     print("bm25 'funny family movie':", [idx.titles[m] for m, _ in idx.search_bm25("funny family movie", 3)])
     print("tfidf 'dark mystery with a plot twist':", [idx.titles[m] for m, _ in idx.search_tfidf("dark mystery with a plot twist", 3)])
     evaluate(idx, {"funny family movie": {"1", "4"}, "mystery thriller twist": {"2", "3"}}, ks=(2, 3))
+    # popularity rerank: an obscure doc matches slightly better, a famous doc should win once popularity counts
+    d2 = {"a": ("Obscure Dino", "dinosaurs dinosaurs dinosaurs"), "b": ("Famous Dino", "dinosaurs park")}
+    i2 = Index(d2)
+    i2.set_popularity({"a": (3, 5.0), "b": (50000, 4.0)})
+    plain = [m for m, _ in i2.search_bm25_pop("dinosaurs", 2, w=0)]
+    boosted = [m for m, _ in i2.search_bm25_pop("dinosaurs", 2, w=DEFAULT_POP_WEIGHT)]
+    assert plain[0] == "a" and boosted[0] == "b", (plain, boosted)
+    print("popularity rerank ok:", plain, "->", boosted)
 
 
 if __name__ == "__main__":
@@ -186,6 +244,9 @@ if __name__ == "__main__":
                     help="leave the title out of the searchable text (it is still shown in results)")
     ap.add_argument("--title-report", action="store_true",
                     help="print how often top results match the query only through the title")
+    ap.add_argument("--pop-weight", type=float, default=0.0,
+                    help=f"BM25 + popularity rerank weight (0 = off; {DEFAULT_POP_WEIGHT} worked best on our labeled queries)")
+    ap.add_argument("--pool", type=int, default=DEFAULT_POOL, help="BM25 hits to rerank with --pop-weight")
     ap.add_argument("--selftest", action="store_true")
     a = ap.parse_args()
     if a.selftest:
@@ -199,8 +260,13 @@ if __name__ == "__main__":
         use_title = not a.no_title
         idx = Index(load_cleaned(a.cleaned, a.min_ratings, use_title) if a.cleaned
                     else load_docs(a.data, use_title))
-        fn = idx.search_bm25 if a.method == "bm25" else idx.search_tfidf
-        for m, s in fn(a.query, a.k):
+        if a.pop_weight > 0:
+            idx.set_popularity(load_popularity(a.data, a.cleaned))
+            results = idx.search_bm25_pop(a.query, a.k, w=a.pop_weight, pool=a.pool)
+        else:
+            fn = idx.search_bm25 if a.method == "bm25" else idx.search_tfidf
+            results = fn(a.query, a.k)
+        for m, s in results:
             print(f"{s:7.3f}  {idx.titles[m]}")
     else:
         ap.print_help()

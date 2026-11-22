@@ -1,0 +1,21 @@
+query_number,query,method,P@5,R@5,P@10,R@10
+1,"I'm looking for a movie about cooking, chefs, or food",TF-IDF,1.0,0.294,1.0,0.588
+2,I want a suspenseful thriller about someone being trapped or trying to escape,TF-IDF,0.6,0.2,0.6,0.4
+3,I'm in the mood for a drama about music or musicians,TF-IDF,0.0,0.0,0.0,0.0
+4,Can you recommend a crime thriller about a heist or robbery,TF-IDF,1.0,0.312,0.6,0.375
+5,I want a funny comedy about a road trip or vacation,TF-IDF,1.0,0.263,0.9,0.474
+6,I'm looking for a romantic movie set around Christmas or the holidays,TF-IDF,0.6,0.375,0.4,0.5
+7,Can you recommend an action movie about a natural disaster,TF-IDF,0.2,0.111,0.4,0.444
+8,I feel like watching a serious courtroom or legal drama,TF-IDF,0.6,0.167,0.7,0.389
+9,I want a scary horror movie about ghosts or haunted houses,TF-IDF,0.6,0.2,0.6,0.4
+10,I'm looking for an inspiring sports drama about an underdog,TF-IDF,0.0,0.0,0.1,0.091
+1,"I'm looking for a movie about cooking, chefs, or food",BM25,1.0,0.294,1.0,0.588
+2,I want a suspenseful thriller about someone being trapped or trying to escape,BM25,1.0,0.333,0.9,0.6
+3,I'm in the mood for a drama about music or musicians,BM25,0.4,0.286,0.3,0.429
+4,Can you recommend a crime thriller about a heist or robbery,BM25,1.0,0.312,0.9,0.562
+5,I want a funny comedy about a road trip or vacation,BM25,0.8,0.211,0.9,0.474
+6,I'm looking for a romantic movie set around Christmas or the holidays,BM25,0.4,0.25,0.4,0.5
+7,Can you recommend an action movie about a natural disaster,BM25,0.6,0.333,0.5,0.556
+8,I feel like watching a serious courtroom or legal drama,BM25,1.0,0.278,1.0,0.556
+9,I want a scary horror movie about ghosts or haunted houses,BM25,1.0,0.333,1.0,0.667
+10,I'm looking for an inspiring sports drama about an underdog,BM25,0.6,0.273,0.8,0.727
